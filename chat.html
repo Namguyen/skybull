@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Bubble</title>
+  <style>
+    /* Chat Bubble Widget Styles */
+
+    .chat-bubble {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 300px;
+      max-height: 400px;
+      background-color: #f9f9f9;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+
+    .chat-content {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      background-color: #fff;
+    }
+
+    .message {
+      margin: 5px 0;
+      padding: 8px;
+      border-radius: 5px;
+    }
+
+    .message.you {
+      background-color: #d1e7dd;
+      align-self: flex-end;
+    }
+
+    .message.bot {
+      background-color: #f8d7da;
+      align-self: flex-start;
+    }
+
+    .input-container {
+      display: flex;
+      border-top: 1px solid #ccc;
+      background-color: #f1f1f1;
+    }
+
+    .input-container input {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 0;
+      outline: none;
+    }
+
+    .input-container button {
+      padding: 10px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .input-container button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div id="chat-container"></div>
+  <script>
+    // Chat Bubble Widget Implementation
+
+    class ChatBubble {
+      constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        if (!this.container) {
+          throw new Error("Container element not found");
+        }
+
+        this.init();
+      }
+
+      init() {
+        // Create chat bubble elements
+        this.chatBubble = document.createElement("div");
+        this.chatBubble.classList.add("chat-bubble");
+
+        this.chatContent = document.createElement("div");
+        this.chatContent.classList.add("chat-content");
+        this.chatBubble.appendChild(this.chatContent);
+
+        this.inputContainer = document.createElement("div");
+        this.inputContainer.classList.add("input-container");
+
+        this.inputField = document.createElement("input");
+        this.inputField.type = "text";
+        this.inputField.placeholder = "Type your message...";
+        this.inputContainer.appendChild(this.inputField);
+
+        this.sendButton = document.createElement("button");
+        this.sendButton.textContent = "Send";
+        this.inputContainer.appendChild(this.sendButton);
+
+        this.chatBubble.appendChild(this.inputContainer);
+        this.container.appendChild(this.chatBubble);
+
+        // Add event listeners
+        this.sendButton.addEventListener("click", () => this.sendMessage());
+        this.inputField.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            this.sendMessage();
+          }
+        });
+      }
+
+      async sendMessage() {
+        const message = this.inputField.value.trim();
+        if (message) {
+          this.addMessage("You", message);
+          this.inputField.value = "";
+
+          try {
+            const response = await fetch("http://localhost:3000/api/chat", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ question: message }),
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              this.addMessage("Bot", data.answer || "No response");
+            } else {
+              this.addMessage("Bot", "Error: Unable to fetch response.");
+            }
+          } catch (error) {
+            console.error("Error sending message:", error);
+            this.addMessage("Bot", "Error: Unable to connect to the server.");
+          }
+        }
+      }
+
+      addMessage(sender, message) {
+        const messageElement = document.createElement("div");
+        messageElement.classList.add("message", sender.toLowerCase());
+        messageElement.textContent = `${sender}: ${message}`;
+        this.chatContent.appendChild(messageElement);
+        this.chatContent.scrollTop = this.chatContent.scrollHeight;
+      }
+    }
+
+    // Initialize the chat bubble
+    window.addEventListener("DOMContentLoaded", () => {
+      new ChatBubble("chat-container");
+    });
+  </script>
+</body>
+</html>
