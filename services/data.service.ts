@@ -42,6 +42,8 @@ function generateContext(userId: string): string {
     context += `- Active Game: ${userData.active_game || "Unknown"}\n`;
     context += `- Progress: ${userData.progress || "Unknown"}\n`;
     context += `- Completed Games: ${userData.completed_games?.join(", ") || "None"}\n`;
+    context += `- Views Yesterday: ${userData.views?.yesterday || 0}\n`;
+    context += `- Views Last 7 Days: ${userData.views?.last_7_days || 0}\n`;
   } else if (userData.role === "buyer") {
     context += `Buyer Profile:\n`;
     context += `- Favourite Game: ${userData.favourite_game || "Unknown"}\n`;

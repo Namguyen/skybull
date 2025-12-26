@@ -9,8 +9,8 @@ app.use(cors());
 // fake auth middleware (demo)
 app.use((req: any, _res, next) => {
   req.user = {
-    id: "dev_user",
-    role: "developer"
+    id: "buyer_1",
+    role: "buyer"
   };
   next();
 });

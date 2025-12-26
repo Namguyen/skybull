@@ -1,12 +1,40 @@
 import { Router } from "express";
 import { callLLM } from "../services/llm.service";
 import { RateLimiter } from "../lib/security/rateLimiter";
-import { platform_database } from "../services/data.service";
+import { platform_database, generateContext } from "../services/data.service";
 
 const router = Router();
 
 // In-memory store for session-based memory
 const sessionMemory = {};
+
+/**
+ * Remove common lead-in phrases the model may prepend to responses
+ * (e.g. "Based on the data you've provided,"). This is defensive
+ * post-processing to ensure replies start directly with the answer.
+ */
+function stripPrefatoryPhrases(text: string): string {
+  if (!text || typeof text !== "string") return text;
+  let s = text.trim();
+
+  const patterns: RegExp[] = [
+    /^(based on (the )?(data|information) (you've|you have|you) (provided|given)[\s,:-]*)/i,
+    /^(according to (the )?(data|information)[\s,:-]*)/i,
+    /^(from the provided (data|information)[\s,:-]*)/i,
+    /^(as per (the )?(data|information)[\s,:-]*)/i,
+    /^(note[:\-]?\s*)/i,
+  ];
+
+  for (const re of patterns) {
+    if (re.test(s)) s = s.replace(re, "").trim();
+  }
+
+  // Trim stray leading punctuation or conjunctions
+  s = s.replace(/^[,;:\-\s]+/, "");
+  s = s.replace(/^(so|therefore|thus)[\s,]+/i, "");
+
+  return s;
+}
 
 router.post("/chat", async (req, res) => {
   try {
@@ -67,8 +95,12 @@ router.post("/chat", async (req, res) => {
       .map((entry) => `${entry.role === "user" ? "You" : "Bot"}: ${entry.content}`)
       .join("\n");
 
+    // Include DB-derived user profile/context (views, active game, etc.)
+    const userProfileContext = generateContext(user.id);
+
     const systemPrompt = `
 You are an expert game development assistant. Respond based only on the provided CONTEXT and QUESTION. Do not make assumptions or fabricate details.
+- Do NOT begin your response with leading phrases such as "Based on the data you've provided", "According to the information", or similar; start directly with the answer or recommended action.
 - If the CONTEXT is missing or unclear, ask the user for clarification.
 - Provide concise, actionable advice tailored to the user's input.
 - Avoid overly formal or robotic language; keep the tone friendly and supportive.
@@ -113,18 +145,22 @@ You are a Video Game Assistant. Use ONLY the CONTEXT to answer the QUESTION. Do 
     }
 
     const prompt = `
-${systemPrompt}
-${rolePrompt}
+  ${systemPrompt}
+  ${rolePrompt}
 
-CONTEXT:
-${context}
+  USER_PROFILE:
+  ${userProfileContext}
 
-QUESTION: ${sanitizedQuestion}
-`;
+  CONTEXT:
+  ${context}
 
-    const answer = await callLLM(prompt);
+  QUESTION: ${sanitizedQuestion}
+  `;
 
-    // Append the bot's response to the session history
+    const rawAnswer = await callLLM(prompt);
+    const answer = stripPrefatoryPhrases(rawAnswer);
+
+    // Append the bot's response to the session history (cleaned)
     sessionMemory[sessionId].push({ role: "bot", content: answer });
 
     res.json({ answer });
