@@ -1,3 +1,4 @@
+
 # skybull
 
 
@@ -60,5 +61,4 @@ curl http://localhost:3000/api/game/views
 
 - Có một middleware `fake auth` trong `app.ts` — để test xem chatbot có phản hồi với thông tin của user trong database ko
 - `routes/chat.ts` đã có các bước phòng tránh prompt injection và giới hạn độ dài câu hỏi, nhưng cần kiểm tra kỹ khi thay đổi prompt.
-- `services/llm.service.ts` xử lý fallback khi model không tìm thấy và báo lỗi có thông tin khi `DEBUG=true`.
 
